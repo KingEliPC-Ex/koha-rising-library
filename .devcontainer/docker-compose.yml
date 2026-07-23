@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  koha-db:
+    image: mariadb:10.5
+    container_name: koha-db
+    environment:
+      MYSQL_ROOT_PASSWORD: Rising0605
+      MYSQL_DATABASE: koha_library
+      MYSQL_USER: koha_library
+      MYSQL_PASSWORD: Rising0605
+    volumes:
+      - koha-db-data:/var/lib/mysql
+    networks:
+      - koha-net
+
+  koha-app:
+    image: digibib/koha:latest
+    container_name: koha-app
+    depends_on:
+      - koha-db
+    environment:
+      KOHA_INSTANCE: risinglibrary
+      KOHA_DB_HOST: koha-db
+      KOHA_DB_NAME: koha_library
+      KOHA_DB_USER: koha_library
+      KOHA_DB_PASS: Rising0605
+    ports:
+      - "8080:8080"   # Staff interface (safe)
+      - "8081:80"     # OPAC (safe replacement for port 80)
+    volumes:
+      - koha-app-data:/var/lib/koha
+    networks:
+      - koha-net
+
+volumes:
+  koha-db-data:
+  koha-app-data:
+
+networks:
+  koha-net:
