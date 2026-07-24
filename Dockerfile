@@ -2,36 +2,19 @@ FROM debian:11
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install Koha dependencies
+# Add Koha APT repository
+RUN apt-get update && apt-get install -y gnupg curl && \
+    curl -s https://debian.koha-community.org/koha/gpg.asc | apt-key add - && \
+    echo "deb http://debian.koha-community.org/koha stable main" > /etc/apt/sources.list.d/koha.list
+
+# Install Koha
 RUN apt-get update && apt-get install -y \
-    git build-essential \
-    libdbi-perl libdbd-mysql-perl \
-    libxml-libxml-perl libxml-libxslt-perl \
-    libjson-perl libyaml-perl \
-    libdatetime-perl libdatetime-format-strptime-perl \
-    libtemplate-perl libtext-csv-perl \
-    libarchive-zip-perl libsoap-lite-perl \
-    libnet-ldap-perl libdigest-sha-perl \
-    libio-socket-ssl-perl libcrypt-eksblowfish-perl \
-    libunicode-linebreak-perl libunicode-string-perl \
-    libplack-middleware-session-perl \
-    apache2 libapache2-mod-perl2 \
+    koha-common \
     mariadb-client \
+    apache2 \
+    libapache2-mod-perl2 \
     curl wget ca-certificates \
     && apt-get clean
-
-# Clone Koha source
-RUN git clone --depth 1 https://gitlab.com/koha-community/koha.git /usr/src/koha
-
-WORKDIR /usr/src/koha
-
-# Build Koha
-RUN perl Makefile.PL && make && make install
-
-# Create directories
-RUN mkdir -p /var/lib/koha /etc/koha/sites /var/log/koha \
-    && useradd -m -d /var/lib/koha koha \
-    && chown -R koha:koha /var/lib/koha /etc/koha/sites /var/log/koha
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

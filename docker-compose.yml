@@ -1,64 +1,23 @@
 services:
   db:
     image: mariadb:10.5
-    env_file:
-      - .env
+    env_file: .env
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
-      - ${DB_VOLUME}:/var/lib/mysql
+      - db-data:/var/lib/mysql
     networks:
       - kohanet
-    healthcheck:
-      test: ["CMD-SHELL", "mysql --user=${MYSQL_USER} --password=${MYSQL_PASSWORD} --host=${MYSQL_SERVER} ${MYSQL_DATABASE} -e 'select 1'"]
-      interval: 10s
-      start_period: 2m
-
-  es:
-    image: koha/elasticsearch-icu:latest
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    networks:
-      - kohanet
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:9200"]
-      interval: 10s
-      start_period: 2m
-
-  memcached:
-    image: memcached:latest
-    command: memcached -m 64m
-    networks:
-      - kohanet
-    healthcheck:
-      test: ["CMD-SHELL", "/bin/bash -c 'exec 3<>/dev/tcp/localhost/11211; printf \"stats\nquit\n\" >&3'"]
-      interval: 10s
-      start_period: 2m
 
   koha:
     build:
       context: .
-      args:
-        KOHA_GIT: ${KOHA_GIT}
-        KOHA_BRANCH: ${KOHA_BRANCH}
-    image: local/koha:built
-    env_file:
-      - .env
+    env_file: .env
     depends_on:
-      db:
-        condition: service_started
-      memcached:
-        condition: service_healthy
-      es:
-        condition: service_healthy
+      - db
     volumes:
-      - ${INSTANCE_VOLUME}:/var/lib/koha
-      - ${ETC_VOLUME}:/etc/koha/sites
+      - inst-data:/var/lib/koha
+      - etc-data:/etc/koha/sites
     networks:
       - kohanet
     healthcheck:
@@ -67,15 +26,11 @@ services:
       start_period: 2m
 
   apache2:
-    image: local/koha:built
-    env_file:
-      - .env
+    image: local/koha:latest
+    env_file: .env
     depends_on:
       koha:
         condition: service_healthy
-    environment:
-      USE_APACHE2: 1
-      USE_BACKEND: 0
     ports:
       - "${KOHA_INTRANET_PORT}:8081"
       - "${KOHA_OPAC_PORT}:8080"
