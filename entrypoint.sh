@@ -21,23 +21,23 @@ mysql -h "${MYSQL_SERVER}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e \
    GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO '${MYSQL_USER}'@'%';
    FLUSH PRIVILEGES;"
 
+# Update koha-sites.conf so koha-create uses our DB
+sed -i "s/^db_host=.*/db_host=${MYSQL_SERVER}/" /etc/koha/koha-sites.conf
+sed -i "s/^db_name=.*/db_name=${MYSQL_DATABASE}/" /etc/koha/koha-sites.conf
+sed -i "s/^db_user=.*/db_user=${MYSQL_USER}/" /etc/koha/koha-sites.conf
+sed -i "s/^db_pass=.*/db_pass=${MYSQL_PASSWORD}/" /etc/koha/koha-sites.conf
+
 # Create Koha instance
 if [ ! -d "/etc/koha/sites/${KOHA_INSTANCE}" ]; then
-  koha-create --create-db \
-    --dbhost="${MYSQL_SERVER}" \
-    --dbname="${MYSQL_DATABASE}" \
-    --dbuser="${MYSQL_USER}" \
-    --dbpass="${MYSQL_PASSWORD}" \
-    "${KOHA_INSTANCE}"
+  echo "Creating Koha instance ${KOHA_INSTANCE}..."
+  koha-create --create-db "${KOHA_INSTANCE}"
 fi
 
-# Enable Plack
-koha-plack --enable "${KOHA_INSTANCE}"
-
 # Start services
-service apache2 restart
 koha-zebra --start "${KOHA_INSTANCE}"
+koha-plack --enable "${KOHA_INSTANCE}"
 koha-plack --start "${KOHA_INSTANCE}"
+service apache2 restart
 
 touch /healthy
 echo "Koha is healthy."
