@@ -21,8 +21,8 @@ mysql -h "${MYSQL_SERVER}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e \
    GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO '${MYSQL_USER}'@'%';
    FLUSH PRIVILEGES;"
 
-# Correct Koha config format
-cat <<EOF >/etc/koha/koha-sites.conf
+# Write correct Koha config format (literal heredoc)
+cat <<"EOF" >/etc/koha/koha-sites.conf
 domain = localhost
 intranetport = 8081
 opacport = 8080
@@ -42,9 +42,14 @@ if [ ! -d "/etc/koha/sites/${KOHA_INSTANCE}" ]; then
 fi
 
 # Start services
+echo "Starting Zebra..."
 koha-zebra --start "${KOHA_INSTANCE}"
+
+echo "Starting Plack..."
 koha-plack --enable "${KOHA_INSTANCE}"
 koha-plack --start "${KOHA_INSTANCE}"
+
+echo "Starting Apache..."
 service apache2 restart
 
 touch /healthy
