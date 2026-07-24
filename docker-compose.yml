@@ -1,50 +1,162 @@
 services:
-  koha-db:
+  db:
     image: mariadb:10.5
     container_name: koha-db
+    restart: always
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: koha_library
-      MYSQL_USER: koha_library
-      MYSQL_PASSWORD: koha_library
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: koha_${KOHA_INSTANCE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
-      - koha-db-data:/var/lib/mysql
+      - db-data:/var/lib/mysql:delegated
     networks:
-      - koha-net
+      - kohanet
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -proot || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 10s
+      test: ["CMD-SHELL", "mysql --user=${MYSQL_USER} --password=${MYSQL_PASSWORD} --host=${MYSQL_SERVER} koha_${KOHA_INSTANCE} -e 'select 1'"]
+      interval: 10s
+      start_period: "2m"
+      start_interval: "2s"
 
-  koha-app:
-    image: digibib/koha:latest
-    container_name: koha-app
-    depends_on:
-      koha-db:
-        condition: service_healthy
-    restart: unless-stopped
+  es:
+    image: koha/elasticsearch-icu
+    container_name: koha-es
+    restart: always
     environment:
-      KOHA_INSTANCE: risinglibrary
-      KOHA_DB_HOST: koha-db
-      KOHA_DB_NAME: koha_library
-      KOHA_DB_USER: koha_library
-      KOHA_DB_PASS: koha_library
-      KOHA_NO_PING: 1
-    entrypoint: ["/bin/sh", "/koha-entrypoint.sh"]
-    ports:
-      - "8080:8080"
-      - "8081:80"
-    volumes:
-      - koha-app-data:/var/lib/koha
-      - ./koha-entrypoint.sh:/koha-entrypoint.sh:ro
+      - cluster.name=docker-cluster
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
     networks:
-      - koha-net
+      - kohanet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "127.0.0.1:9200"]
+      interval: 10s
+      start_period: "2m"
+      start_interval: "2s"
+
+  memcached:
+    image: memcached
+    container_name: koha-memcached
+    restart: always
+    command: memcached -m 64m
+    networks:
+      - kohanet
+    healthcheck:
+      test: ["CMD-SHELL", "/bin/bash -c 'exec 3<>/dev/tcp/localhost/11211; printf \"stats\nquit\n\" >&3'"]
+      interval: 10s
+      start_period: "2m"
+      start_interval: "5s"
+
+  koha:
+    image: registry.gitlab.com/koha-community/docker/koha-docker/koha:${KOHA_VERSION:-stable}
+    container_name: koha-backend
+    restart: always
+    depends_on:
+      db:
+        condition: service_started
+      memcached:
+        condition: service_healthy
+      es:
+        condition: service_healthy
+    cap_add:
+      - ALL
+    tmpfs:
+      - /cover_db
+      - /tmp
+    env_file:
+      - .env
+    environment:
+      USE_APACHE2: 0
+      USE_BACKEND: 1
+      USE_SIP: 0
+      USE_CRON: 0
+      USE_Z3950: 0
+    volumes:
+      - inst-data:/var/lib/koha:delegated
+      - etc-data:/etc/koha/sites:delegated
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    networks:
+      - kohanet
+    healthcheck:
+      test: ["CMD", "test", "-f", "/healthy"]
+      interval: 10s
+      start_period: "2m"
+      start_interval: "5s"
+
+  apache2:
+    image: registry.gitlab.com/koha-community/docker/koha-docker/koha:${KOHA_VERSION:-stable}
+    container_name: koha-apache
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      koha:
+        condition: service_healthy
+    cap_add:
+      - ALL
+    environment:
+      USE_APACHE2: 1
+      USE_BACKEND: 0
+      USE_SIP: 0
+      USE_CRON: 0
+      USE_Z3950: 0
+    networks:
+      kohanet:
+        aliases:
+          - "${KOHA_INTRANET_PREFIX}${KOHA_INSTANCE}${KOHA_INTRANET_SUFFIX}${KOHA_DOMAIN}"
+          - "${KOHA_OPAC_PREFIX}${KOHA_INSTANCE}${KOHA_OPAC_SUFFIX}${KOHA_DOMAIN}"
+    ports:
+      - "8080:8080"   # Staff
+      - "8081:8081"   # OPAC
+
+  cron:
+    image: registry.gitlab.com/koha-community/docker/koha-docker/koha:${KOHA_VERSION:-stable}
+    container_name: koha-cron
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      koha:
+        condition: service_healthy
+    environment:
+      USE_APACHE2: 0
+      USE_BACKEND: 0
+      USE_SIP: 0
+      USE_CRON: 1
+      USE_Z3950: 0
+    networks:
+      - kohanet
+
+  nginx:
+    image: nginx:stable
+    container_name: koha-nginx
+    restart: always
+    depends_on:
+      apache2:
+        condition: service_started
+    networks:
+      - kohanet
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
 
 volumes:
-  koha-db-data:
-  koha-app-data:
+  db-data:
+  inst-data:
+  etc-data:
 
 networks:
-  koha-net:
+  kohanet:
