@@ -21,18 +21,18 @@ mysql -h "${MYSQL_SERVER}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e \
    GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO '${MYSQL_USER}'@'%';
    FLUSH PRIVILEGES;"
 
-# Write correct Koha config format (literal heredoc)
+# Write correct Koha config format (NO SPACES around '=')
 cat <<"EOF" >/etc/koha/koha-sites.conf
-domain = localhost
-intranetport = 8081
-opacport = 8080
+domain=localhost
+intranetport=8081
+opacport=8080
 
-db_scheme = mysql
-db_host = ${MYSQL_SERVER}
-db_port = 3306
-db_name = ${MYSQL_DATABASE}
-db_user = ${MYSQL_USER}
-db_pass = ${MYSQL_PASSWORD}
+db_scheme=mysql
+db_host=${MYSQL_SERVER}
+db_port=3306
+db_name=${MYSQL_DATABASE}
+db_user=${MYSQL_USER}
+db_pass=${MYSQL_PASSWORD}
 EOF
 
 # Create Koha instance
