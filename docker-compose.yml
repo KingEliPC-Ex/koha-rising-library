@@ -19,6 +19,8 @@ services:
     container_name: koha-app
     depends_on:
       - koha-db
+    # Delay Koha startup so DB is ready
+    command: /bin/sh -c "sleep 5 && /root/entrypoint.sh"
     environment:
       KOHA_INSTANCE: risinglibrary
       KOHA_DB_HOST: koha-db
