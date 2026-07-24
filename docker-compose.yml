@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   koha-db:
     image: mariadb:10.5
@@ -13,8 +11,6 @@ services:
       - koha-db-data:/var/lib/mysql
     networks:
       - koha-net
-
-    # MariaDB healthcheck — Koha waits until this passes
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -proot || exit 1"]
       interval: 5s
@@ -25,31 +21,24 @@ services:
   koha-app:
     image: digibib/koha:latest
     container_name: koha-app
-
-    # Koha will NOT start until DB is healthy
     depends_on:
       koha-db:
         condition: service_healthy
-
     restart: unless-stopped
-
     environment:
       KOHA_INSTANCE: risinglibrary
       KOHA_DB_HOST: koha-db
       KOHA_DB_NAME: koha_library
       KOHA_DB_USER: koha_library
       KOHA_DB_PASS: koha_library
-
-      # Disable ping — Codespaces blocks ICMP
       KOHA_NO_PING: 1
-
+    entrypoint: ["/bin/sh", "/koha-entrypoint.sh"]
     ports:
-      - "8080:8080"   # Staff
-      - "8081:80"     # OPAC
-
+      - "8080:8080"
+      - "8081:80"
     volumes:
       - koha-app-data:/var/lib/koha
-
+      - ./koha-entrypoint.sh:/koha-entrypoint.sh:ro
     networks:
       - koha-net
 
