@@ -11,9 +11,8 @@ apt-get install -y --no-install-recommends \
   libsoap-lite-perl libnet-ldap-perl libdigest-sha-perl \
   libio-socket-ssl-perl libcrypt-eksblowfish-perl \
   libunicode-linebreak-perl libunicode-string-perl \
-  libplack-perl libplack-middleware-session-perl \
-  libplack-middleware-rewrite-perl libplack-handler-starman-perl \
-  libzebra-perl libxml2-utils curl wget ca-certificates \
+  libplack-middleware-session-perl \
+  libxml2-utils curl wget ca-certificates \
   libcache-cache-perl memcached perl-modules
 
 # Install cpanminus and common CPAN modules used by Koha

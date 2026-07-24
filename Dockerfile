@@ -14,10 +14,7 @@ RUN apt-get update && apt-get install -y \
     libnet-ldap-perl libdigest-sha-perl \
     libio-socket-ssl-perl libcrypt-eksblowfish-perl \
     libunicode-linebreak-perl libunicode-string-perl \
-    libplack-perl libplack-middleware-session-perl \
-    libplack-middleware-rewrite-perl \
-    libplack-handler-starman-perl \
-    libzebra-perl \
+    libplack-middleware-session-perl \
     apache2 libapache2-mod-perl2 \
     mariadb-client \
     curl wget ca-certificates \
