@@ -26,7 +26,7 @@ services:
       start_period: 2m
 
   apache2:
-    image: local/koha:latest
+    image: koha-rising-library-koha:latest
     env_file: .env
     depends_on:
       koha:
