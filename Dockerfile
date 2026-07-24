@@ -1,36 +1,42 @@
-FROM ubuntu:22.04
+FROM debian:12
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV KOHA_INSTANCE=${KOHA_INSTANCE:-kohadev}
-ENV KOHA_HOME=/var/lib/koha
-ENV KOHA_ETC=/etc/koha
-ENV PATH=/usr/local/bin:$PATH
 
-# Install base packages and Koha build deps
-COPY build-scripts/install-koha-deps.sh /tmp/install-koha-deps.sh
-RUN chmod +x /tmp/install-koha-deps.sh && /tmp/install-koha-deps.sh
+# Install Koha dependencies
+RUN apt-get update && apt-get install -y \
+    git build-essential \
+    libdbi-perl libdbd-mysql-perl \
+    libxml-libxml-perl libxml-libxslt-perl \
+    libjson-perl libyaml-perl \
+    libdatetime-perl libdatetime-format-strptime-perl \
+    libtemplate-perl libtext-csv-perl \
+    libarchive-zip-perl libsoap-lite-perl \
+    libnet-ldap-perl libdigest-sha-perl \
+    libio-socket-ssl-perl libcrypt-eksblowfish-perl \
+    libunicode-linebreak-perl libunicode-string-perl \
+    libplack-perl libplack-middleware-session-perl \
+    libplack-middleware-rewrite-perl \
+    libplack-handler-starman-perl \
+    libzebra-perl \
+    apache2 libapache2-mod-perl2 \
+    mariadb-client \
+    curl wget ca-certificates \
+    && apt-get clean
 
 # Clone Koha source
-ARG KOHA_GIT
-ARG KOHA_BRANCH
-RUN git clone --depth 1 --branch ${KOHA_BRANCH} ${KOHA_GIT} /usr/src/koha
+RUN git clone --depth 1 https://gitlab.com/koha-community/koha.git /usr/src/koha
 
-# Install Koha Perl modules and packaging
 WORKDIR /usr/src/koha
+
+# Build Koha
 RUN perl Makefile.PL && make && make install
 
-# Create directories and default permissions
-RUN mkdir -p ${KOHA_HOME} ${KOHA_ETC} /var/run/zebra /var/log/koha \
-    && useradd -m -d /var/lib/koha koha || true \
-    && chown -R koha:koha ${KOHA_HOME} ${KOHA_ETC} /var/run/zebra /var/log/koha
+# Create directories
+RUN mkdir -p /var/lib/koha /etc/koha/sites /var/log/koha \
+    && useradd -m -d /var/lib/koha koha \
+    && chown -R koha:koha /var/lib/koha /etc/koha/sites /var/log/koha
 
-# Copy entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 8080 8081
-
-VOLUME ["/var/lib/mysql","/var/lib/koha","/etc/koha/sites"]
-
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["tail","-f","/dev/null"]
