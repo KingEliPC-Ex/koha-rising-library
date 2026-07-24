@@ -14,25 +14,42 @@ services:
     networks:
       - koha-net
 
+    # MariaDB healthcheck — Koha waits until this passes
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -proot || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
   koha-app:
     image: digibib/koha:latest
     container_name: koha-app
+
+    # Koha will NOT start until DB is healthy
     depends_on:
-      - koha-db
-    # Delay Koha startup so DB is ready
-    command: /bin/sh -c "sleep 5 && /root/entrypoint.sh"
+      koha-db:
+        condition: service_healthy
+
+    restart: unless-stopped
+
     environment:
       KOHA_INSTANCE: risinglibrary
       KOHA_DB_HOST: koha-db
       KOHA_DB_NAME: koha_library
       KOHA_DB_USER: koha_library
       KOHA_DB_PASS: koha_library
+
+      # Disable ping — Codespaces blocks ICMP
       KOHA_NO_PING: 1
+
     ports:
-      - "8080:8080"
-      - "8081:80"
+      - "8080:8080"   # Staff
+      - "8081:80"     # OPAC
+
     volumes:
       - koha-app-data:/var/lib/koha
+
     networks:
       - koha-net
 
