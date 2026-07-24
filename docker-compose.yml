@@ -1,9 +1,6 @@
-version: '3'
-
 services:
   db:
     image: mariadb:10.5
-    restart: always
     env_file:
       - .env
     environment:
@@ -12,23 +9,16 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
-      - ${DB_VOLUME}:/var/lib/mysql:delegated
+      - ${DB_VOLUME}:/var/lib/mysql
     networks:
       - kohanet
     healthcheck:
       test: ["CMD-SHELL", "mysql --user=${MYSQL_USER} --password=${MYSQL_PASSWORD} --host=${MYSQL_SERVER} ${MYSQL_DATABASE} -e 'select 1'"]
       interval: 10s
-      start_period: "2m"
-      start_interval: "2s"
+      start_period: 2m
 
   es:
     image: koha/elasticsearch-icu:latest
-    restart: always
-    environment:
-      - cluster.name=docker-cluster
-      - bootstrap.memory_lock=true
-      - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ulimits:
       memlock:
         soft: -1
@@ -36,10 +26,9 @@ services:
     networks:
       - kohanet
     healthcheck:
-      test: ["CMD", "curl", "-f", "127.0.0.1:9200"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9200"]
       interval: 10s
-      start_period: "2m"
-      start_interval: "2s"
+      start_period: 2m
 
   memcached:
     image: memcached:latest
@@ -49,11 +38,17 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "/bin/bash -c 'exec 3<>/dev/tcp/localhost/11211; printf \"stats\nquit\n\" >&3'"]
       interval: 10s
-      start_period: "2m"
-      start_interval: "5s"
+      start_period: 2m
 
   koha:
-    image: koha/koha:latest
+    build:
+      context: .
+      args:
+        KOHA_GIT: ${KOHA_GIT}
+        KOHA_BRANCH: ${KOHA_BRANCH}
+    image: local/koha:built
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_started
@@ -61,14 +56,6 @@ services:
         condition: service_healthy
       es:
         condition: service_healthy
-    env_file:
-      - .env
-    environment:
-      USE_BACKEND: 1
-      USE_APACHE2: 0
-      USE_CRON: 0
-      USE_SIP: ${USE_SIP}
-      USE_Z3950: 0
     volumes:
       - ${INSTANCE_VOLUME}:/var/lib/koha
       - ${ETC_VOLUME}:/etc/koha/sites
@@ -77,46 +64,21 @@ services:
     healthcheck:
       test: ["CMD", "test", "-f", "/healthy"]
       interval: 10s
-      start_period: "2m"
-      start_interval: "5s"
+      start_period: 2m
 
   apache2:
-    image: koha/koha:latest
-    restart: always
+    image: local/koha:built
+    env_file:
+      - .env
     depends_on:
       koha:
         condition: service_healthy
-    env_file:
-      - .env
     environment:
-      USE_BACKEND: 0
       USE_APACHE2: 1
-      USE_CRON: 0
-      USE_SIP: ${USE_SIP}
-      USE_Z3950: 0
-    networks:
-      kohanet:
-        aliases:
-          - "${KOHA_INTRANET_PREFIX}${KOHA_INSTANCE}${KOHA_INTRANET_SUFFIX}${KOHA_DOMAIN}"
-          - "${KOHA_OPAC_PREFIX}${KOHA_INSTANCE}${KOHA_OPAC_SUFFIX}${KOHA_DOMAIN}"
+      USE_BACKEND: 0
     ports:
       - "${KOHA_INTRANET_PORT}:8081"
       - "${KOHA_OPAC_PORT}:8080"
-
-  cron:
-    image: koha/koha:latest
-    restart: always
-    depends_on:
-      koha:
-        condition: service_healthy
-    env_file:
-      - .env
-    environment:
-      USE_BACKEND: 0
-      USE_APACHE2: 0
-      USE_CRON: 1
-      USE_SIP: ${USE_SIP}
-      USE_Z3950: 0
     networks:
       - kohanet
 
@@ -125,3 +87,5 @@ networks:
 
 volumes:
   db-data:
+  inst-data:
+  etc-data:
