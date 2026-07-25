@@ -32,8 +32,8 @@ services:
       koha:
         condition: service_healthy
     ports:
-      - "${KOHA_INTRANET_PORT}:8081"
-      - "${KOHA_OPAC_PORT}:8080"
+      - "${KOHA_INTRANET_PORT}:8123"
+      - "${KOHA_OPAC_PORT}:80"
     networks:
       - kohanet
 

@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
 
 # Enable required Apache modules
 RUN a2enmod rewrite
+RUN a2enmod cgi
 RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 # Copy entrypoint
