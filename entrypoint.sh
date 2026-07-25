@@ -35,10 +35,14 @@ db_user=${MYSQL_USER}
 db_pass=${MYSQL_PASSWORD}
 EOF
 
-# Create Koha instance
+# Create Koha instance (force TCP instead of MySQL socket)
 if [ ! -d "/etc/koha/sites/${KOHA_INSTANCE}" ]; then
   echo "Creating Koha instance ${KOHA_INSTANCE}..."
-  koha-create --create-db "${KOHA_INSTANCE}"
+
+  export DB_HOST="${MYSQL_SERVER}"
+  export DB_PORT=3306
+
+  koha-create --create-db --dbhost "$DB_HOST" --dbport "$DB_PORT" "${KOHA_INSTANCE}"
 fi
 
 # Start services
