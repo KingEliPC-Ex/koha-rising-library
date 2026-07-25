@@ -45,6 +45,12 @@ if [ ! -d "/etc/koha/sites/${KOHA_INSTANCE}" ]; then
   koha-create --create-db --dbhost "$DB_HOST" --dbport "$DB_PORT" "${KOHA_INSTANCE}"
 fi
 
+# Ensure Koha runtime directories exist
+mkdir -p /var/run/koha/${KOHA_INSTANCE}
+mkdir -p /var/log/koha/${KOHA_INSTANCE}
+chown -R koha.${KOHA_INSTANCE}:koha.${KOHA_INSTANCE} /var/run/koha/${KOHA_INSTANCE} || true
+chown -R koha.${KOHA_INSTANCE}:koha.${KOHA_INSTANCE} /var/log/koha/${KOHA_INSTANCE} || true
+
 # Start services
 echo "Starting Zebra..."
 koha-zebra --start "${KOHA_INSTANCE}"
